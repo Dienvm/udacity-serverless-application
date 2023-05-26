@@ -8,8 +8,6 @@ export async function getTodos(
   idToken: string,
   searchQuery?: string
 ): Promise<Todo[]> {
-  console.log('Fetching todos')
-
   const response = await Axios.get(
     `${apiEndpoint}/todos${searchQuery ? `?searchQuery=${searchQuery}` : ''}`,
     {
@@ -19,7 +17,6 @@ export async function getTodos(
       }
     }
   )
-  console.log('Todos:', response.data)
   return response.data.items
 }
 
@@ -71,12 +68,11 @@ export async function deleteTodo(
 
 export async function sortTodos(
   idToken: string,
-  todoId: string,
   sortField: string,
   sortDirection: string
-): Promise<void> {
-  await Axios.get(
-    `${apiEndpoint}/todos/${todoId}?sortField=${sortField}&sortDirection=${sortDirection}`,
+): Promise<Todo[]> {
+  const response = await Axios.get(
+    `${apiEndpoint}/todos/sort?sortField=${sortField}&sortDirection=${sortDirection}`,
     {
       headers: {
         'Content-Type': 'application/json',
@@ -84,6 +80,8 @@ export async function sortTodos(
       }
     }
   )
+
+  return response.data
 }
 
 export async function getUploadUrl(

@@ -35,8 +35,6 @@ export class TodosAccess {
       queryExpression.ExpressionAttributeValues[':searchQuery'] = searchQuery
     }
 
-    console.log({ queryExpression })
-
     const result = await this.docClient.query(queryExpression).promise()
 
     const items = result.Items
@@ -78,7 +76,6 @@ export class TodosAccess {
     todoUpdate: TodoUpdate
   ): Promise<TodoUpdate> {
     logger.info('Updating a todo item')
-    console.log('updateTodoItem', todoUpdate)
 
     await this.docClient
       .update({
@@ -162,19 +159,27 @@ export class TodosAccess {
 
     const items = result.Items as TodoItem[]
 
-    return items.sort((a, b) => {
-      if (sortField === 'name') {
-        return sortDirection.toUpperCase() === 'ASC'
-          ? a.name.localeCompare(b.name)
-          : b.name.localeCompare(a.name)
-      } else if (sortField === 'createdAt') {
-        return sortDirection.toUpperCase() === 'ASC'
-          ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      } else {
-        // Handle other sort fields if needed
-        return 0
+    const sortedTodos = [...items]
+
+    let compareFn: (a: TodoItem, b: TodoItem) => number
+    if (sortField === 'name') {
+      compareFn = (a, b) => a.name.localeCompare(b.name)
+    } else if (sortField === 'dueDate') {
+      compareFn = (a, b) => {
+        const dueDateA = new Date(a.dueDate).getTime() / 1000
+        const dueDateB = new Date(b.dueDate).getTime() / 1000
+        return dueDateA - dueDateB
       }
-    })
+    } else {
+      compareFn = (a, b) => a.name.localeCompare(b.name)
+    }
+
+    if (sortDirection === 'asc') {
+      sortedTodos.sort(compareFn)
+    } else if (sortDirection === 'desc') {
+      sortedTodos.sort((a, b) => compareFn(b, a))
+    }
+
+    return sortedTodos
   }
 }

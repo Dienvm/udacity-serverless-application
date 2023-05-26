@@ -14,7 +14,13 @@ import {
   Loader
 } from 'semantic-ui-react'
 
-import { createTodo, deleteTodo, getTodos, patchTodo } from '../api/todos-api'
+import {
+  createTodo,
+  deleteTodo,
+  getTodos,
+  patchTodo,
+  sortTodos
+} from '../api/todos-api'
 import Auth from '../auth/Auth'
 import { Todo } from '../types/Todo'
 
@@ -37,7 +43,6 @@ export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
   const [searchQuery, setSearchQuery] = React.useState('')
   const [sortField, setSortField] = React.useState('')
   const [sortDirection, setSortDirection] = React.useState('')
-  console.log({ searchQuery, sortField, sortDirection })
 
   React.useEffect(() => {
     const fetchTodos = async () => {
@@ -54,21 +59,24 @@ export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
   }, [auth])
 
   React.useEffect(() => {
-    const fetchTodos = async () => {
+    const handleSort = async () => {
       try {
-        const fetchedTodos = await getTodos(
+        const sortedTodos = await sortTodos(
           auth.getIdToken(),
-          sortField,
-          sortDirection
+          sortDirection,
+          sortField
         )
-        setTodos(fetchedTodos)
-        setLoadingTodos(false)
+
+        if (sortedTodos) {
+          setTodos(sortedTodos)
+          setLoadingTodos(false)
+        }
       } catch (e) {
         alert(`Failed to fetch todos: ${(e as Error).message}`)
       }
     }
 
-    fetchTodos()
+    if (sortField && sortDirection) handleSort()
   }, [auth, sortField, sortDirection])
 
   React.useEffect(() => {
@@ -93,7 +101,7 @@ export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
     }
   }
 
-  const handleSort = (field: string) => {
+  const handleSort = async (field: string) => {
     if (field === sortField) {
       // Toggle the sort direction if the same field is clicked again
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -102,6 +110,19 @@ export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
       setSortField(field)
       setSortDirection('asc')
     }
+
+    // const sortedTodos = await sortTodos(
+    //   auth.getIdToken(),
+    //   sortDirection,
+    //   sortField
+    // )
+
+    // console.log({ sortedTodos })
+
+    // if (sortedTodos) {
+    //   setTodos(sortedTodos)
+    //   setLoadingTodos(false)
+    // }
   }
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {

@@ -14,7 +14,6 @@ export async function getTodos(
   userId: string,
   searchQuery: string
 ): Promise<TodoItem[]> {
-  console.log({ searchQuery })
   return todosAccess.getTodos(userId, searchQuery)
 }
 
@@ -43,7 +42,6 @@ export async function updateTodo(
   todoId: string,
   updateTodoRequest: UpdateTodoRequest
 ): Promise<UpdateTodoRequest> {
-  console.log({ updateTodoRequest })
   logger.info('Updating a todo item')
   const item = await todosAccess.getTodoItem(todoId, userId)
 
