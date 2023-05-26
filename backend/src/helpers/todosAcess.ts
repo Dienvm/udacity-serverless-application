@@ -150,7 +150,7 @@ export class TodosAccess {
         },
         ScanIndexForward: sortDirection.toUpperCase() === 'ASC',
         ProjectionExpression:
-          'userId, todoId, createdAt, #name, dueDate, done, important, category',
+          'userId, todoId, createdAt, #name, dueDate, done, important, category, attachmentUrl',
         ExpressionAttributeNames: {
           '#name': 'name'
         }
