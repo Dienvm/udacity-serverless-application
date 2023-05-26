@@ -29,13 +29,6 @@ interface TodosProps {
   history: History
 }
 
-interface TodosState {
-  todos: Todo[]
-  newTodoName: string
-  loadingTodos: boolean
-  searchQuery: string
-}
-
 export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
   const [todos, setTodos] = React.useState<Todo[]>([])
   const [newTodoName, setNewTodoName] = React.useState('')
@@ -59,46 +52,21 @@ export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
   }, [auth])
 
   React.useEffect(() => {
-    const handleSort = async () => {
+    const fetchTodos = async () => {
       try {
-        const sortedTodos = await sortTodos(
-          auth.getIdToken(),
-          sortDirection,
-          sortField
-        )
-
-        if (sortedTodos) {
-          setTodos(sortedTodos)
-          setLoadingTodos(false)
-        }
+        const fetchedTodos = await getTodos(auth.getIdToken(), searchQuery)
+        setTodos(fetchedTodos)
+        setLoadingTodos(false)
       } catch (e) {
         alert(`Failed to fetch todos: ${(e as Error).message}`)
       }
     }
 
-    if (sortField && sortDirection) handleSort()
-  }, [auth, sortField, sortDirection])
-
-  React.useEffect(() => {
-    if (searchQuery) {
-      const fetchTodos = async () => {
-        try {
-          const fetchedTodos = await getTodos(auth.getIdToken(), searchQuery)
-          setTodos(fetchedTodos)
-          setLoadingTodos(false)
-        } catch (e) {
-          alert(`Failed to fetch todos: ${(e as Error).message}`)
-        }
-      }
-
-      fetchTodos()
-    }
+    fetchTodos()
   }, [searchQuery, auth])
 
   const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.value.trim()) {
-      setNewTodoName(event.target.value)
-    }
+    setNewTodoName(event.target.value)
   }
 
   const handleSort = async (field: string) => {
@@ -111,24 +79,20 @@ export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
       setSortDirection('asc')
     }
 
-    // const sortedTodos = await sortTodos(
-    //   auth.getIdToken(),
-    //   sortDirection,
-    //   sortField
-    // )
+    const sortedTodos = await sortTodos(
+      auth.getIdToken(),
+      sortField,
+      sortDirection
+    )
 
-    // console.log({ sortedTodos })
-
-    // if (sortedTodos) {
-    //   setTodos(sortedTodos)
-    //   setLoadingTodos(false)
-    // }
+    if (sortedTodos) {
+      setTodos(sortedTodos)
+      setLoadingTodos(false)
+    }
   }
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.value.trim()) {
-      setSearchQuery(event.target.value)
-    }
+    setSearchQuery(event.target.value)
   }
 
   const onEditButtonClick = (todoId: string) => {
@@ -212,7 +176,13 @@ export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
   const renderTodosList = () => {
     return (
       <Grid.Row>
-        <Grid.Row>
+        <Grid.Row
+          style={{
+            display: 'flex',
+            width: '100%',
+            justifyContent: 'space-between'
+          }}
+        >
           <Grid.Column width={8}>
             <Input
               icon="search"
@@ -318,7 +288,6 @@ export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
         </Loader>
       ) : (
         <Grid padded>
-          {renderTodosList()}
           <Grid.Row>
             <Grid.Column width={16}>
               <Input
@@ -337,6 +306,8 @@ export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
               />
             </Grid.Column>
           </Grid.Row>
+
+          {renderTodosList()}
         </Grid>
       )}
     </div>

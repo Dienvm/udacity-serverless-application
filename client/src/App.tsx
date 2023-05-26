@@ -51,7 +51,6 @@ const App: React.FC<AppProps> = (props) => {
   }
 
   const generateCurrentPage = () => {
-    console.log('isAuthenticated', props.auth.isAuthenticated())
     if (!props.auth.isAuthenticated()) {
       return <LogIn auth={props.auth} />
     }
