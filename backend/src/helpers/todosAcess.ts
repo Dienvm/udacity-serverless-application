@@ -152,7 +152,6 @@ export class TodosAccess {
           ':userId': userId
         },
         ScanIndexForward: sortDirection.toUpperCase() === 'ASC',
-        IndexName: 'userId-index', // Assuming an index named 'userId-index' is present
         ProjectionExpression:
           'userId, todoId, createdAt, #name, dueDate, done, important, category',
         ExpressionAttributeNames: {
@@ -162,13 +161,18 @@ export class TodosAccess {
       .promise()
 
     const items = result.Items as TodoItem[]
+
     return items.sort((a, b) => {
-      if (sortField === 'createdAt') {
+      if (sortField === 'name') {
+        return sortDirection.toUpperCase() === 'ASC'
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name)
+      } else if (sortField === 'createdAt') {
         return sortDirection.toUpperCase() === 'ASC'
           ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       } else {
-        // Sort by other fields if needed
+        // Handle other sort fields if needed
         return 0
       }
     })
