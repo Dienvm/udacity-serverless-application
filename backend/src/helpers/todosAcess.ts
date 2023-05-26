@@ -163,7 +163,8 @@ export class TodosAccess {
 
     let compareFn: (a: TodoItem, b: TodoItem) => number
     if (sortField === 'name') {
-      compareFn = (a, b) => a.name.localeCompare(b.name)
+      compareFn = (a, b) =>
+        a.name.trim().toLowerCase().localeCompare(b.name.toLocaleLowerCase())
     } else if (sortField === 'dueDate') {
       compareFn = (a, b) => {
         const dueDateA = new Date(a.dueDate).getTime() / 1000
@@ -171,7 +172,8 @@ export class TodosAccess {
         return dueDateA - dueDateB
       }
     } else {
-      compareFn = (a, b) => a.name.localeCompare(b.name)
+      compareFn = (a, b) =>
+        a.name.trim().toLowerCase().localeCompare(b.name.trim().toLowerCase())
     }
 
     if (sortDirection === 'asc') {
