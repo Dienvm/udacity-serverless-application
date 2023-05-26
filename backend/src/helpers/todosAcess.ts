@@ -15,19 +15,29 @@ export class TodosAccess {
     private readonly todosTable = process.env.TODOS_TABLE
   ) {}
 
-  async getTodos(userId: string): Promise<TodoItem[]> {
+  async getTodos(userId: string, searchQuery?: string): Promise<TodoItem[]> {
     logger.info('Getting all todos')
 
-    const result = await this.docClient
-      .query({
-        TableName: this.todosTable,
-        KeyConditionExpression: 'userId = :userId',
-        ExpressionAttributeValues: {
-          ':userId': userId
-        },
-        ScanIndexForward: true
-      })
-      .promise()
+    let queryExpression: any = {
+      TableName: this.todosTable,
+      KeyConditionExpression: 'userId = :userId',
+      ExpressionAttributeValues: {
+        ':userId': userId
+      },
+      ScanIndexForward: true
+    }
+
+    if (searchQuery) {
+      queryExpression.FilterExpression = 'contains (#n, :searchQuery)'
+      queryExpression.ExpressionAttributeNames = {
+        '#n': 'name'
+      }
+      queryExpression.ExpressionAttributeValues[':searchQuery'] = searchQuery
+    }
+
+    console.log({ queryExpression })
+
+    const result = await this.docClient.query(queryExpression).promise()
 
     const items = result.Items
     return items as TodoItem[]
@@ -68,6 +78,7 @@ export class TodosAccess {
     todoUpdate: TodoUpdate
   ): Promise<TodoUpdate> {
     logger.info('Updating a todo item')
+    console.log('updateTodoItem', todoUpdate)
 
     await this.docClient
       .update({
@@ -76,11 +87,13 @@ export class TodosAccess {
           todoId,
           userId
         },
-        UpdateExpression: 'set #name = :name, dueDate = :dueDate, done = :done',
+        UpdateExpression:
+          'set #name = :name, dueDate = :dueDate, done = :done, important = :important',
         ExpressionAttributeValues: {
           ':name': todoUpdate.name,
           ':dueDate': todoUpdate.dueDate,
-          ':done': todoUpdate.done
+          ':done': todoUpdate.done,
+          ':important': todoUpdate.important
         },
         ExpressionAttributeNames: {
           '#name': 'name'
@@ -122,5 +135,42 @@ export class TodosAccess {
         }
       })
       .promise()
+  }
+
+  async sortTodosItem(
+    userId: string,
+    sortField: string,
+    sortDirection: string
+  ): Promise<TodoItem[]> {
+    logger.info('Getting sorted todos')
+
+    const result = await this.docClient
+      .query({
+        TableName: this.todosTable,
+        KeyConditionExpression: 'userId = :userId',
+        ExpressionAttributeValues: {
+          ':userId': userId
+        },
+        ScanIndexForward: sortDirection.toUpperCase() === 'ASC',
+        IndexName: 'userId-index', // Assuming an index named 'userId-index' is present
+        ProjectionExpression:
+          'userId, todoId, createdAt, #name, dueDate, done, important, category',
+        ExpressionAttributeNames: {
+          '#name': 'name'
+        }
+      })
+      .promise()
+
+    const items = result.Items as TodoItem[]
+    return items.sort((a, b) => {
+      if (sortField === 'createdAt') {
+        return sortDirection.toUpperCase() === 'ASC'
+          ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      } else {
+        // Sort by other fields if needed
+        return 0
+      }
+    })
   }
 }

@@ -10,8 +10,12 @@ const todosAccess = new TodosAccess()
 const logger = createLogger('TodosLogic')
 const attachmentUtils = new AttachmentUtils()
 
-export async function getTodos(userId: string): Promise<TodoItem[]> {
-  return todosAccess.getTodos(userId)
+export async function getTodos(
+  userId: string,
+  searchQuery: string
+): Promise<TodoItem[]> {
+  console.log({ searchQuery })
+  return todosAccess.getTodos(userId, searchQuery)
 }
 
 export async function createTodo(
@@ -27,6 +31,7 @@ export async function createTodo(
     createdAt: new Date().toISOString(),
     attachmentUrl: s3AttachmentUrl,
     done: false,
+    important: false,
     ...createTodoRequest
   }
 
@@ -38,6 +43,7 @@ export async function updateTodo(
   todoId: string,
   updateTodoRequest: UpdateTodoRequest
 ): Promise<UpdateTodoRequest> {
+  console.log({ updateTodoRequest })
   logger.info('Updating a todo item')
   const item = await todosAccess.getTodoItem(todoId, userId)
 
@@ -46,6 +52,10 @@ export async function updateTodo(
   if (item.userId !== userId) {
     throw new Error('User not authorized to update item')
   }
+
+  // Update the important property in the item based on the updateTodoRequest
+  item.important = updateTodoRequest.important
+
   return todosAccess.updateTodoItem(userId, todoId, updateTodoRequest)
 }
 
@@ -70,4 +80,14 @@ export async function createAttachmentPresignUrl(
 ): Promise<string> {
   logger.info('Generating upload url')
   return attachmentUtils.generateUploadUrl(todoId)
+}
+
+export async function getSortedTodos(
+  userId: string,
+  sortField: string,
+  sortDirection: string
+): Promise<TodoItem[]> {
+  logger.info('Getting sorted todos')
+
+  return todosAccess.sortTodosItem(userId, sortField, sortDirection)
 }

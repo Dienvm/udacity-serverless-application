@@ -12,7 +12,10 @@ export const handler = middy(
   async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const userId = getUserId(event)
 
-    const todos = await getTodos(userId)
+    // Extract the searchQuery parameter from the event's queryStringParameters
+    const searchQuery = event.queryStringParameters?.searchQuery || ''
+
+    const todos = await getTodos(userId, searchQuery) // Pass the searchQuery to the getTodos function
 
     return {
       statusCode: 200,

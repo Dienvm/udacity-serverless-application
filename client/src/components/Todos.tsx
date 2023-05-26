@@ -27,192 +27,297 @@ interface TodosState {
   todos: Todo[]
   newTodoName: string
   loadingTodos: boolean
+  searchQuery: string
 }
 
-export class Todos extends React.PureComponent<TodosProps, TodosState> {
-  state: TodosState = {
-    todos: [],
-    newTodoName: '',
-    loadingTodos: true
-  }
+export const Todos: React.FC<TodosProps> = ({ auth, history }) => {
+  const [todos, setTodos] = React.useState<Todo[]>([])
+  const [newTodoName, setNewTodoName] = React.useState('')
+  const [loadingTodos, setLoadingTodos] = React.useState(true)
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [sortField, setSortField] = React.useState('')
+  const [sortDirection, setSortDirection] = React.useState('')
+  console.log({ searchQuery, sortField, sortDirection })
 
-  handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  React.useEffect(() => {
+    const fetchTodos = async () => {
+      try {
+        const fetchedTodos = await getTodos(auth.getIdToken())
+        setTodos(fetchedTodos)
+        setLoadingTodos(false)
+      } catch (e) {
+        alert(`Failed to fetch todos: ${(e as Error).message}`)
+      }
+    }
+
+    fetchTodos()
+  }, [auth])
+
+  React.useEffect(() => {
+    const fetchTodos = async () => {
+      try {
+        const fetchedTodos = await getTodos(
+          auth.getIdToken(),
+          sortField,
+          sortDirection
+        )
+        setTodos(fetchedTodos)
+        setLoadingTodos(false)
+      } catch (e) {
+        alert(`Failed to fetch todos: ${(e as Error).message}`)
+      }
+    }
+
+    fetchTodos()
+  }, [auth, sortField, sortDirection])
+
+  React.useEffect(() => {
+    if (searchQuery) {
+      const fetchTodos = async () => {
+        try {
+          const fetchedTodos = await getTodos(auth.getIdToken(), searchQuery)
+          setTodos(fetchedTodos)
+          setLoadingTodos(false)
+        } catch (e) {
+          alert(`Failed to fetch todos: ${(e as Error).message}`)
+        }
+      }
+
+      fetchTodos()
+    }
+  }, [searchQuery, auth])
+
+  const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.value.trim()) {
-      this.setState({ newTodoName: event.target.value })
+      setNewTodoName(event.target.value)
     }
   }
 
-  onEditButtonClick = (todoId: string) => {
-    this.props.history.push(`/todos/${todoId}/edit`)
+  const handleSort = (field: string) => {
+    if (field === sortField) {
+      // Toggle the sort direction if the same field is clicked again
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // Set the new sort field and default sort direction
+      setSortField(field)
+      setSortDirection('asc')
+    }
   }
 
-  onTodoCreate = async (event: React.ChangeEvent<HTMLButtonElement>) => {
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.value.trim()) {
+      setSearchQuery(event.target.value)
+    }
+  }
+
+  const onEditButtonClick = (todoId: string) => {
+    history.push(`/todos/${todoId}/edit`)
+  }
+
+  const onTodoCreate = async (event: React.ChangeEvent<HTMLButtonElement>) => {
     try {
-      if (this.state.newTodoName.trim()) {
-        const dueDate = this.calculateDueDate()
-        const newTodo = await createTodo(this.props.auth.getIdToken(), {
-          name: this.state.newTodoName,
-          dueDate
+      if (newTodoName.trim()) {
+        const dueDate = calculateDueDate()
+        const newTodo = await createTodo(auth.getIdToken(), {
+          name: newTodoName,
+          dueDate,
+          sortField,
+          sortDirection
         })
-        this.setState({
-          todos: [...this.state.todos, newTodo],
-          newTodoName: ''
-        })
+        setTodos([...todos, newTodo])
+        setNewTodoName('')
       }
     } catch {
       alert('Todo creation failed')
     }
   }
 
-  onTodoDelete = async (todoId: string) => {
+  const onTodoDelete = async (todoId: string) => {
     try {
-      await deleteTodo(this.props.auth.getIdToken(), todoId)
-      this.setState({
-        todos: this.state.todos.filter((todo) => todo.todoId !== todoId)
-      })
+      await deleteTodo(auth.getIdToken(), todoId)
+      setTodos(todos.filter((todo) => todo.todoId !== todoId))
     } catch {
       alert('Todo deletion failed')
     }
   }
 
-  onTodoCheck = async (pos: number) => {
+  const onTodoCheck = async (pos: number) => {
     try {
-      const todo = this.state.todos[pos]
-      await patchTodo(this.props.auth.getIdToken(), todo.todoId, {
+      const todo = todos[pos]
+      await patchTodo(auth.getIdToken(), todo.todoId, {
         name: todo.name,
         dueDate: todo.dueDate,
-        done: !todo.done
+        done: !todo.done,
+        important: todo.important as boolean,
+        sortField,
+        sortDirection
       })
-      this.setState({
-        todos: update(this.state.todos, {
+      setTodos(
+        update(todos, {
           [pos]: { done: { $set: !todo.done } }
         })
-      })
+      )
     } catch {
-      alert('Todo deletion failed')
+      alert('Todo update failed')
     }
   }
 
-  async componentDidMount() {
+  const onTodoMarkImportant = async (pos: number) => {
     try {
-      const todos = await getTodos(this.props.auth.getIdToken())
-      this.setState({
-        todos,
-        loadingTodos: false
+      const todo = todos[pos]
+      await patchTodo(auth.getIdToken(), todo.todoId, {
+        name: todo.name,
+        dueDate: todo.dueDate,
+        done: todo.done,
+        important: !todo.important // Toggle the important value
       })
-    } catch (e) {
-      alert(`Failed to fetch todos: ${(e as Error).message}`)
+      setTodos(
+        update(todos, {
+          [pos]: { important: { $set: !todo.important } }
+        })
+      )
+    } catch {
+      alert('Todo update failed')
     }
   }
 
-  render() {
-    return (
-      <div>
-        <Header as="h1">TODOs</Header>
-
-        {this.renderCreateTodoInput()}
-
-        {this.renderTodos()}
-      </div>
-    )
+  const calculateDueDate = (): string => {
+    const currentDate = new Date()
+    const dueDate = new Date()
+    dueDate.setDate(currentDate.getDate() + 7) // Set due date as 7 days from current date
+    return dateFormat(dueDate, 'yyyy-mm-dd') as string
   }
 
-  renderCreateTodoInput() {
+  const renderTodosList = () => {
     return (
       <Grid.Row>
+        <Grid.Row>
+          <Grid.Column width={8}>
+            <Input
+              icon="search"
+              placeholder="Search todos..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
+          </Grid.Column>
+
+          <Grid.Column width={8}>
+            <div>
+              Sort by:
+              <Button
+                icon
+                color={sortField === 'name' ? 'blue' : undefined}
+                onClick={() => handleSort('name')}
+              >
+                Name
+                {sortField === 'name' && (
+                  <Icon
+                    name={`angle ${sortDirection === 'asc' ? 'up' : 'down'}`}
+                  />
+                )}
+              </Button>
+              <Button
+                icon
+                color={sortField === 'dueDate' ? 'blue' : undefined}
+                onClick={() => handleSort('dueDate')}
+              >
+                Due Date
+                {sortField === 'dueDate' && (
+                  <Icon
+                    name={`angle ${sortDirection === 'asc' ? 'up' : 'down'}`}
+                  />
+                )}
+              </Button>
+            </div>
+          </Grid.Column>
+        </Grid.Row>
+
         <Grid.Column width={16}>
-          <Input
-            action={{
-              color: 'teal',
-              labelPosition: 'left',
-              icon: 'add',
-              content: 'New task',
-              onClick: this.onTodoCreate
-            }}
-            fluid
-            actionPosition="left"
-            placeholder="To change the world..."
-            onChange={this.handleNameChange}
-          />
-        </Grid.Column>
-        <Grid.Column width={16}>
-          <Divider />
-        </Grid.Column>
-      </Grid.Row>
-    )
-  }
-
-  renderTodos() {
-    if (this.state.loadingTodos) {
-      return this.renderLoading()
-    }
-
-    return this.renderTodosList()
-  }
-
-  renderLoading() {
-    return (
-      <Grid.Row>
-        <Loader indeterminate active inline="centered">
-          Loading TODOs
-        </Loader>
-      </Grid.Row>
-    )
-  }
-
-  renderTodosList() {
-    return (
-      <Grid padded>
-        {this.state.todos.map((todo, pos) => {
-          return (
-            <Grid.Row key={todo.todoId}>
-              <Grid.Column width={1} verticalAlign="middle">
-                <Checkbox
-                  onChange={() => this.onTodoCheck(pos)}
-                  checked={todo.done}
-                />
-              </Grid.Column>
-              <Grid.Column width={10} verticalAlign="middle">
-                {todo.name}
-              </Grid.Column>
-              <Grid.Column width={3} floated="right">
-                {todo.dueDate}
-              </Grid.Column>
-              <Grid.Column width={1} floated="right">
-                <Button
-                  icon
-                  color="blue"
-                  onClick={() => this.onEditButtonClick(todo.todoId)}
-                >
-                  <Icon name="pencil" />
-                </Button>
-              </Grid.Column>
-              <Grid.Column width={1} floated="right">
-                <Button
-                  icon
-                  color="red"
-                  onClick={() => this.onTodoDelete(todo.todoId)}
-                >
-                  <Icon name="delete" />
-                </Button>
-              </Grid.Column>
-              {todo.attachmentUrl && (
-                <Image src={todo.attachmentUrl} size="small" wrapped />
-              )}
-              <Grid.Column width={16}>
+          {todos.map((todo, pos) => {
+            return (
+              <div key={todo.todoId}>
                 <Divider />
-              </Grid.Column>
-            </Grid.Row>
-          )
-        })}
-      </Grid>
+                <Grid>
+                  <Grid.Column width={1}>
+                    <Checkbox
+                      onChange={() => onTodoCheck(pos)}
+                      checked={todo.done}
+                    />
+                  </Grid.Column>
+                  <Grid.Column width={10} verticalAlign="middle">
+                    {todo.name}
+                    <div>
+                      {todo.attachmentUrl && (
+                        <Image src={todo.attachmentUrl} size="small" wrapped />
+                      )}
+                    </div>
+                  </Grid.Column>
+                  <Grid.Column width={2} floated="right">
+                    {dateFormat(todo.dueDate, 'yyyy-mm-dd')}
+                  </Grid.Column>
+                  <Grid.Column width={3} floated="right">
+                    <Button
+                      icon
+                      color={todo.important ? 'yellow' : undefined}
+                      onClick={() => onTodoMarkImportant(pos)}
+                    >
+                      <Icon name="star" />
+                    </Button>
+                    <Button
+                      icon
+                      color="blue"
+                      onClick={() => onEditButtonClick(todo.todoId)}
+                    >
+                      <Icon name="pencil" />
+                    </Button>
+                    <Button
+                      icon
+                      color="red"
+                      onClick={() => onTodoDelete(todo.todoId)}
+                    >
+                      <Icon name="delete" />
+                    </Button>
+                  </Grid.Column>
+                </Grid>
+              </div>
+            )
+          })}
+        </Grid.Column>
+      </Grid.Row>
     )
   }
 
-  calculateDueDate(): string {
-    const date = new Date()
-    date.setDate(date.getDate() + 7)
+  return (
+    <div>
+      <Header as="h1">Todo List</Header>
 
-    return dateFormat(date, 'yyyy-mm-dd') as string
-  }
+      {loadingTodos ? (
+        <Loader indeterminate active inline="centered">
+          Loading Todos
+        </Loader>
+      ) : (
+        <Grid padded>
+          {renderTodosList()}
+          <Grid.Row>
+            <Grid.Column width={16}>
+              <Input
+                action={{
+                  color: 'teal',
+                  labelPosition: 'left',
+                  icon: 'add',
+                  content: 'New todo',
+                  onClick: onTodoCreate
+                }}
+                fluid
+                actionPosition="left"
+                placeholder="Todo name"
+                onChange={handleNameChange}
+                value={newTodoName}
+              />
+            </Grid.Column>
+          </Grid.Row>
+        </Grid>
+      )}
+    </div>
+  )
 }

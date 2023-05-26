@@ -5,5 +5,6 @@ export interface TodoItem {
   name: string
   dueDate: string
   done: boolean
+  important: boolean
   attachmentUrl?: string
 }
